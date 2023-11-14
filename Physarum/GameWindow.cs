@@ -84,9 +84,6 @@ class GameWindow : Game
         Console.WriteLine("Update called");
 
 #endif
-        if (gameTime.TotalGameTime.Seconds >= 3) 
-
-        if (gameTime.TotalGameTime.Seconds >= 2) 
 
         for (int i = 0; i < Foods.Length; i++)
         {
