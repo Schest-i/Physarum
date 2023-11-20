@@ -1,18 +1,12 @@
 ﻿using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Content;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Physarum.AgentLogic
 {
     //i think crazy dont work
     internal class Agent
     {
-        int x;
-        int y;
+        public int x;
+        public int y;
         
         float speed;
 
@@ -22,7 +16,7 @@ namespace Physarum.AgentLogic
 
         bool angrystate; // false - normanl, true - crazy
 
-        TimeSpan AngryTime;
+        int StartTime;
         int crazyTime;
 
         Random random = new Random();
@@ -48,53 +42,106 @@ namespace Physarum.AgentLogic
             
             this.Pmap = Pmap;
         }
-        public void Update(Sensor sensor, GameTime GameTime)
+        public void Update(Sensor sensor, GameTime gameTime)
         {
             int nX, nY;
-            Pmap[x, y] += pheromone;
-            
-            nX = x + (int)MathF.Round((float)(speed * MathF.Cos(angle + sensor.angle)), 0);
-            nY = y + (int)MathF.Round((float)(speed * MathF.Sin(angle + sensor.angle)), 0);
 
+            int lX0, lY0;
+            int lX1, lY1;
+            int hX, hY;
+
+            nX = x + (int)MathF.Round(speed * MathF.Cos(angle + sensor.angle), 0);
+            nY = y + (int)MathF.Round(speed * MathF.Sin(angle + sensor.angle), 0);
+
+            hX = nX / Pmap.GetLength(0);
+            hY = nY / Pmap.GetLength(1);
             
+            lX0 = x;
+            lY0 = y;
+            //доделать линии
+            //while (true)
+            //{
+            //    (x + nX);   
+            //    DrawLine(x, y, nX, nY); 
+
+            //}
+
             nX = (int)MathF.Abs((Pmap.GetLength(0) + nX) % Pmap.GetLength(0));
             nY = (int)MathF.Abs((Pmap.GetLength(1) + nY) % Pmap.GetLength(1));
+
+            DrawLine(x,y,nX,nY);
 
             x = nX; 
             y = nY;
 
             angle += sensor.angle * (float)random.NextDouble() * MathF.PI / 4f;
 
-            if (AngryTime.Seconds + crazyTime <= GameTime.TotalGameTime.TotalSeconds) angrystate = false;
+            if (StartTime + crazyTime <= gameTime.TotalGameTime.Seconds) angrystate = false;
         }
-        public Sensor GetBestSensor()
+        public Sensor GetBestSensor(GameTime gameTime)
         {
             (int, float) SelectedSensor = (0, 0f); // (number of sensor, value)
+            
+            float Scheck = sensors[0].GetValue(ref Pmap, x, y);
+            float OldPvalue = 0;
             float Pvalue = 0;
-            int x, y;
+
+            bool SEquals = false;
+
             for (int i = 0; i < sensors.Length; i++)
             {
+
+                Pvalue = sensors[i].GetValue(ref Pmap, x, y);
                 
-                x = (int)MathF.Round((float)(sensors[i].length * MathF.Cos(angle + sensors[i].angle)), 0) + this.x;
-                y = (int)MathF.Round((float)(sensors[i].length * MathF.Sin(angle + sensors[i].angle)), 0) + this.y;
-
-               
-
-                x = (int)MathF.Abs((Pmap.GetLength(0) + x) % Pmap.GetLength(0));
-                y = (int)MathF.Abs((Pmap.GetLength(1) + y) % Pmap.GetLength(1));
-
-                if (Pvalue < Pmap[x, y] && !angrystate)
+                if (OldPvalue < Pvalue&& !angrystate)
                 {
-                    if (Pmap[x, y] >= threshold) angrystate = true;
-                    SelectedSensor = (Array.IndexOf(sensors, sensors[i]), Pmap[x, y]);
+                    if (Pvalue >= threshold) 
+                    {
+                        angrystate = true;
+                        StartTime = gameTime.TotalGameTime.Seconds;
+                    }
+                    OldPvalue = Pvalue;
+                    SelectedSensor = (Array.IndexOf(sensors, sensors[i]), Pvalue);
                 }
                 else if(Pvalue > Pmap[x, y] && angrystate)
                 {
-                    SelectedSensor = (Array.IndexOf(sensors, sensors[i]), Pmap[x, y]);
+                    OldPvalue = Pvalue;
+                    SelectedSensor = (Array.IndexOf(sensors, sensors[i]), Pvalue);
                 }
             }
             
             return sensors[SelectedSensor.Item1]; 
         }
+
+        // Bresenham's line algorithm
+        public void DrawLine(int x0, int y0, int x1, int y1)
+        {
+            int dx = (int)MathF.Abs(x1 - x0);
+            int sx = x0 < x1 ? 1 : -1;
+            int dy = -(int)MathF.Abs(y1 - y0);
+            int sy = y0 < y1 ? 1 : -1;
+            int error = dx + dy;
+            int e2;
+            Pmap[x0, y0] += pheromone;
+            while (true)
+            {
+                if (x0 == x1 && y0 == y1) break;
+                e2 = 2 * error;
+                if (e2 >= dy)
+                {
+                    if(x0 == x1) break;
+                    error += dy;
+                    x0 += sx;
+                }
+                if (e2 <= dx)
+                {
+                    if (y0 == y1) break;
+                    error += dx;
+                    y0 += sy;
+                }
+                Pmap[x0, y0] += pheromone;
+            }
+        }
+        
     }
 }
