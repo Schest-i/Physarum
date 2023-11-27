@@ -25,10 +25,11 @@ class GameWindow : Game
     float DiffValue;
     float Pheromone;
     float Speed;
+
     int CrazyTime;
 
     Food[] Foods = new Food[1];
-    Agent[] Agents = new Agent[2000]; 
+    Agent[] Agents = new Agent[100000]; 
     Sensor[] Sensors = new Sensor[] { };
 
     SpriteBatch SpriteBatch;
@@ -65,17 +66,17 @@ class GameWindow : Game
         //}
         //Sensors = Sensors.Concat(new Sensor[] { new Sensor(0f, 3f) }).ToArray();
         Sensors = Sensors.Concat(new Sensor[] { new Sensor(MathF.PI / 9f, 3f) }).ToArray();
-        Sensors = Sensors.Concat(new Sensor[] { new Sensor(MathF.PI - MathF.PI / 9f, 3f) }).ToArray();
+        Sensors = Sensors.Concat(new Sensor[] { new Sensor(2 * MathF.PI - MathF.PI / 9f, 3f) }).ToArray();
         
         //init agents
         for (int i = 0; i < Agents.Length; i++)
         {
-            Agents[i] = new Agent(ref Sensors, ref PheromoneMap, x: rand.Next(0, WindowWidth - 1), y: rand.Next(0, WindowHeight - 1), pheromone: Pheromone, speed: Speed, crazyTime: CrazyTime);
+            Agents[i] = new Agent(ref Sensors, ref PheromoneMap, rand.Next(0, WindowWidth - 1), rand.Next(0, WindowHeight - 1), Speed, Pheromone, CrazyTime);
 
         }
         
         //init foods
-        //Foods[0] = new Food(WindowWidth / 2f, WindowHeight / 2f, 10f, 2f);
+        Foods[0] = new Food(WindowWidth / 2f, WindowHeight / 2f, 10f, 0.01f);
         base.Initialize();
     }
 
@@ -116,7 +117,7 @@ class GameWindow : Game
         
         base.Update(gameTime);
     }
-
+    
     protected override void Draw(GameTime gameTime)
     {
         int x, y;
@@ -126,8 +127,8 @@ class GameWindow : Game
 #if DEBUG 
         for (int i = 0; i < Agents.Length; i++)
         {
-            x = Agents[i].x;
-            y = Agents[i].y;
+            x = (int)Agents[i].x;
+            y = (int)Agents[i].y;
             SpriteBatch.Draw(AgentTexture, new Vector2(x, y), Color.White);
         }
 #endif

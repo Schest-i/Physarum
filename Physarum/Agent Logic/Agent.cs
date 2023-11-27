@@ -1,30 +1,39 @@
 ﻿using Microsoft.Xna.Framework;
+using static System.MathF;
 
 namespace Physarum.AgentLogic
 {
     //i think crazy dont work
     internal class Agent
     {
-        public int x;
-        public int y;
-        
-        float speed;
+        private Vector2 coordinates;
 
+        public float x {
+            get { return Round(coordinates.X, 0); }
+            set { coordinates.X = value; }
+        } 
+        public float y {
+            get { return Round(coordinates.Y, 0); }
+            set { coordinates.Y = value; }
+        }
+
+        float speed;
         float angle;
         float pheromone;
         float threshold;
-
+        
         bool angrystate; // false - normanl, true - crazy
 
         int StartTime;
         int crazyTime;
 
+
         Random random = new Random();
         Sensor[] sensors;
         float[,] Pmap;
 
-
-        public Agent(ref Sensor[] sensors, ref float[,] Pmap ,int x = 0, int y = 0, float speed = 0, float angle = 0, float pheromone = 0, float threshold = 0,int crazyTime = 0, bool angrystate = false)
+        
+        public Agent(ref Sensor[] sensors, ref float[,] Pmap, float x = 0, float y = 0, float speed = 0, float angle = 0, float pheromone = 0, float threshold = 0,int crazyTime = 0, bool angrystate = false)
         {
             this.x = x;
             this.y = y;
@@ -38,43 +47,29 @@ namespace Physarum.AgentLogic
             this.angrystate = angrystate;
 
             this.sensors = sensors;
-            
-            
             this.Pmap = Pmap;
+            
         }
         public void Update(Sensor sensor, GameTime gameTime)
         {
-            int nX, nY;
+            int oX = (int)x;
+            int oY = (int)y;
 
-            int lX0, lY0;
-            int lX1, lY1;
-            int hX, hY;
+            float nX = coordinates.X + (int)Round(speed * Cos(angle + sensor.angle), 0);
+            float nY = coordinates.Y + (int)Round(speed * Sin(angle + sensor.angle), 0);
 
-            nX = x + (int)MathF.Round(speed * MathF.Cos(angle + sensor.angle), 0);
-            nY = y + (int)MathF.Round(speed * MathF.Sin(angle + sensor.angle), 0);
+            DrawLine(
+                oX,
+                oY,
+                (int)Round(nX, 0),
+                (int)Round(nY, 0)
+                );
 
-            hX = nX / Pmap.GetLength(0);
-            hY = nY / Pmap.GetLength(1);
+            x = (Pmap.GetLength(0) + nX) % Pmap.GetLength(0);
+            y = (Pmap.GetLength(1) + nY) % Pmap.GetLength(1);
             
-            lX0 = x;
-            lY0 = y;
-            //доделать линии
-            //while (true)
-            //{
-            //    (x + nX);   
-            //    DrawLine(x, y, nX, nY); 
 
-            //}
-
-            nX = (int)MathF.Abs((Pmap.GetLength(0) + nX) % Pmap.GetLength(0));
-            nY = (int)MathF.Abs((Pmap.GetLength(1) + nY) % Pmap.GetLength(1));
-
-            DrawLine(x,y,nX,nY);
-
-            x = nX; 
-            y = nY;
-
-            angle += sensor.angle * (float)random.NextDouble() * MathF.PI / 4f;
+            angle += sensor.angle * random.NextSingle() * PI / 4f;
 
             if (StartTime + crazyTime <= gameTime.TotalGameTime.Seconds) angrystate = false;
         }
@@ -82,7 +77,7 @@ namespace Physarum.AgentLogic
         {
             (int, float) SelectedSensor = (0, 0f); // (number of sensor, value)
             
-            float Scheck = sensors[0].GetValue(ref Pmap, x, y);
+            float Scheck = sensors[0].GetValue(ref Pmap, (int)x, (int)y);
             float OldPvalue = 0;
             float Pvalue = 0;
 
@@ -91,7 +86,7 @@ namespace Physarum.AgentLogic
             for (int i = 0; i < sensors.Length; i++)
             {
 
-                Pvalue = sensors[i].GetValue(ref Pmap, x, y);
+                Pvalue = sensors[i].GetValue(ref Pmap, (int)x, (int)y);
                 
                 if (OldPvalue < Pvalue&& !angrystate)
                 {
@@ -103,7 +98,7 @@ namespace Physarum.AgentLogic
                     OldPvalue = Pvalue;
                     SelectedSensor = (Array.IndexOf(sensors, sensors[i]), Pvalue);
                 }
-                else if(Pvalue > Pmap[x, y] && angrystate)
+                else if(Pvalue > Pmap[(int)x, (int)y] && angrystate)
                 {
                     OldPvalue = Pvalue;
                     SelectedSensor = (Array.IndexOf(sensors, sensors[i]), Pvalue);
@@ -113,12 +108,12 @@ namespace Physarum.AgentLogic
             return sensors[SelectedSensor.Item1]; 
         }
 
-        // Bresenham's line algorithm
+        // Bresenham's line algorithm + schest fix for cutted lines
         public void DrawLine(int x0, int y0, int x1, int y1)
         {
-            int dx = (int)MathF.Abs(x1 - x0);
+            int dx = (int)Abs(x1 - x0);
             int sx = x0 < x1 ? 1 : -1;
-            int dy = -(int)MathF.Abs(y1 - y0);
+            int dy = -(int)Abs(y1 - y0);
             int sy = y0 < y1 ? 1 : -1;
             int error = dx + dy;
             int e2;
@@ -139,7 +134,10 @@ namespace Physarum.AgentLogic
                     error += dx;
                     y0 += sy;
                 }
-                Pmap[x0, y0] += pheromone;
+                Pmap[
+                (Pmap.GetLength(0) + x0) % Pmap.GetLength(0),
+                (Pmap.GetLength(1) + y0) % Pmap.GetLength(1)
+                ] += pheromone;
             }
         }
         
