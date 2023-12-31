@@ -2,6 +2,10 @@
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
+using System.Diagnostics;
+using Microsoft.Xna.Framework.Input;
+
+using static System.MathF;
 
 class GameWindow : Game
 {
@@ -22,23 +26,29 @@ class GameWindow : Game
     float Pmax;
 
     float WeatheringNum;
-    float DiffValue;
+    float DiffPercent;
     float Pheromone;
     float Speed;
 
     int CrazyTime;
 
-    Food[] Foods = new Food[1];
+    Food[] Foods = new Food[0];
     Agent[] Agents = new Agent[100000]; 
     Sensor[] Sensors = new Sensor[] { };
+
 
     SpriteBatch SpriteBatch;
     Texture2D PheromoneTexture;
     Texture2D AgentTexture;
     Texture2D SensorTexture;
+    /*[[0.500 0.500 0.500] [0.500 0.500 0.500] [0.800 0.800 0.500] [0.000 0.200 0.500]]*/
+    Vector3 a = new Vector3(0.5f, 0.5f, 0.5f);
+    Vector3 b = new Vector3(0.5f, 0.5f, 0.5f);
+    Vector3 c = new Vector3(0.8f, 0.8f, 0.5f);
+    Vector3 d = new Vector3(0f, 0.2f, 0.5f);
 
-#endregion Varibles
-#region Constructor
+    #endregion Varibles
+    #region Constructor
     public GameWindow()
     {
         var GraphicsDeviceManager = new GraphicsDeviceManager(this);
@@ -50,33 +60,43 @@ class GameWindow : Game
 #region ProgramBody
     protected override void Initialize()
     {
+        IsMouseVisible = true;
+
         PheromoneMap = new float[WindowWidth, WindowHeight];
         
         //init playing settings
-        WeatheringNum = rand.NextSingle() * rand.NextSingle();
         //Pheromone = rand.NextSingle();
         Pheromone = 10f;
-        Speed = rand.NextSingle() * 10;
-        CrazyTime = (int)MathF.Round(rand.NextSingle() * 10, 0);
-        
+        DiffPercent = 1f;
+        WeatheringNum = 3f;
+        Speed = 5f;
+        CrazyTime = 3;
+
         //init Sensors
-        //for (float i = 0; i <= 2f * MathF.PI; i += 2 * MathF.PI / 6f)
+        //for (float i = 0; i <= 2f * PI; i += 2 * PI / 6f)
         //{
-        //    Sensors = Sensors.Concat(new Sensor[] {new Sensor(i, 3f)}).ToArray();
+        //    Sensors = Sensors.Concat(new Sensor[] { new Sensor(ref PheromoneMap, i, 3f) }).ToArray();
         //}
         //Sensors = Sensors.Concat(new Sensor[] { new Sensor(0f, 3f) }).ToArray();
-        Sensors = Sensors.Concat(new Sensor[] { new Sensor(MathF.PI / 9f, 3f) }).ToArray();
-        Sensors = Sensors.Concat(new Sensor[] { new Sensor(2 * MathF.PI - MathF.PI / 9f, 3f) }).ToArray();
-        
+        for (float i = 0; i < Tau; i += Tau / 90f)
+        {
+            Sensors = Sensors.Concat(new Sensor[] { new Sensor(ref PheromoneMap, i, 1f) }).ToArray();
+        }
+        //Sensors = Sensors.Concat(new Sensor[] { new Sensor(ref PheromoneMap, Tau / 3f, 3f) }).ToArray();
+        //Sensors = Sensors.Concat(new Sensor[] { new Sensor(ref PheromoneMap, 2 * Tau / 3, 3f) }).ToArray();
+        //Sensors = Sensors.Concat(new Sensor[] { new Sensor(ref PheromoneMap, Tau, 3f) }).ToArray();
+
         //init agents
         for (int i = 0; i < Agents.Length; i++)
         {
-            Agents[i] = new Agent(ref Sensors, ref PheromoneMap, rand.Next(0, WindowWidth - 1), rand.Next(0, WindowHeight - 1), Speed, Pheromone, CrazyTime);
-
+            Agents[i] = new Agent(ref Sensors, ref PheromoneMap, (int)(WindowWidth / 2f), (int)(WindowHeight / 2f), Speed, Pheromone, CrazyTime);
         }
-        
+
         //init foods
-        Foods[0] = new Food(WindowWidth / 2f, WindowHeight / 2f, 10f, 0.01f);
+        for (int i = 0; i < Foods.Length; i++)
+        {
+            Foods[i] = new Food(ref PheromoneMap, WindowWidth / 2f, WindowHeight / 2f, 1f, 0.1f);
+        }
         base.Initialize();
     }
 
@@ -99,16 +119,28 @@ class GameWindow : Game
     }
     protected override void Update(GameTime gameTime)
     {
-        //for (int i = 0; i < Foods.Length; i++)
-        //{
-        //    Foods[i].DispencePheromone(ref PheromoneMap);
-        //}
+        Console.WriteLine($"Update called");
+        int Mx, My;
+
+        Mx = Mouse.GetState().X;
+        Mx = (int)Max(0, Mx);       
+        Mx = (int)Min(_device.Viewport.Width - 1, Mx);
+        My = Mouse.GetState().Y;
+        My = (int)Max(0, My);
+        My = (int)Min(_device.Viewport.Height - 1, My);
+
+        float Ph = PheromoneMap[Mx, My];
+        Window.Title = $"X:{Mx} Y:{My} Ph:{Ph}";
+        for (int i = 0; i < Foods.Length; i++)
+        {
+            Foods[i].DispencePheromone(ref PheromoneMap);
+        }
         for (int i = 0; i < Agents.Length; i++)
         {
-            Agents[i].Update(Agents[i].GetBestSensor(gameTime), gameTime);
+            Agents[i].Update(gameTime);
         }
 
-        Diffusion(DiffValue);
+        Diffusion();
         Weathering();
         
         (Pmin, Pmax) = GetMinMax();
@@ -124,14 +156,16 @@ class GameWindow : Game
         _device.Clear(Color.White);
         SpriteBatch.Begin();
         SpriteBatch.Draw(PheromoneTexture, new Vector2(0f, 0f), Color.White);
-#if DEBUG 
-        for (int i = 0; i < Agents.Length; i++)
+
+        if (Debugger.IsAttached) 
         {
-            x = (int)Agents[i].x;
-            y = (int)Agents[i].y;
-            SpriteBatch.Draw(AgentTexture, new Vector2(x, y), Color.White);
+            for (int i = 0; i < Agents.Length; i++)
+            {
+                x = (int)Agents[i].x;
+                y = (int)Agents[i].y;
+                SpriteBatch.Draw(AgentTexture, new Vector2(x, y), Color.White);
+            }
         }
-#endif
         SpriteBatch.End();
         
         base.Draw(gameTime);
@@ -140,9 +174,9 @@ class GameWindow : Game
 #region Methods
     internal void Weathering() 
     {
-        for (int i = 0; i < PheromoneMap.GetLength(0); i++)
+        for (int i = 0; i < WindowWidth; i++)
         {
-            for (int j = 0; j < PheromoneMap.GetLength(1); j++)
+            for (int j = 0; j < WindowHeight; j++)
             {
                 PheromoneMap[i, j] -= WeatheringNum;
                 if (PheromoneMap[i, j] < 0) PheromoneMap[i, j] = 0;
@@ -150,17 +184,18 @@ class GameWindow : Game
         }
     }
     
-    internal void Diffusion(float DiffPercent)
+    internal void Diffusion()
     {
-        float[,] NewPmap = new float[PheromoneMap.GetLength(0), PheromoneMap.GetLength(1)];
+        
+        float[,] NewPmap = new float[WindowWidth, WindowHeight];
         
         float CellDiffVal;
         
         int x, y;
 
-        for (int i = 0; i < PheromoneMap.GetLength(0); i++)
+        for (int i = 0; i < WindowWidth; i++)
         {
-            for (int j = 0; j < PheromoneMap.GetLength(1); j++)
+            for (int j = 0; j < WindowHeight; j++)
             {
                 CellDiffVal = PheromoneMap[i, j] * DiffPercent / 9f;
                 NewPmap[i, j] = PheromoneMap[i, j] * (1f - DiffPercent);
@@ -168,8 +203,8 @@ class GameWindow : Game
                 {
                     for (int l = -1; l <= 1; l++)
                     {       
-                        x = (int)MathF.Abs((PheromoneMap.GetLength(0) + i + k) % PheromoneMap.GetLength(0));
-                        y = (int)MathF.Abs((PheromoneMap.GetLength(1) + j + l) % PheromoneMap.GetLength(1));
+                        x = (int)Abs((WindowWidth + i + k) % WindowWidth);
+                        y = (int)Abs((WindowHeight + j + l) % WindowHeight);
                         NewPmap[x, y] += CellDiffVal;
                     }
                 }
@@ -182,9 +217,9 @@ class GameWindow : Game
     {
         (float, float) MinMax = (float.MaxValue,0f);
         float item;
-        for (int i = 0; i < PheromoneMap.GetLength(1)/*y*/; i++)
+        for (int i = 0; i < WindowHeight/*y*/; i++)
         {
-            for (int j = 0; j < PheromoneMap.GetLength(0)/*x*/; j++)
+            for (int j = 0; j < WindowWidth/*x*/; j++)
             {
                 item = PheromoneMap[j, i];
 
@@ -194,20 +229,32 @@ class GameWindow : Game
         }
         return MinMax;
     }
+    //починить цвета
+    internal Color GetColor(float value)
+    {
+        Vector3 color;
+
+        color.X = a.X + b.X * Cos(Tau * (c.X * value + d.X));
+        color.Y = a.Y + b.Y * Cos(Tau * (c.Y * value + d.Y));
+        color.Z = a.Z + b.Z * Cos(Tau * (c.Z * value + d.Z));   
+
+        return new Color(color.X, color.Y, color.Z);
+    }
     internal Color[] MapToTexture() 
     {
         Color[] ColorMap = new Color[PheromoneTexture.Width * PheromoneTexture.Height];
-        float OnePercent = 255f / Pmax;
-        int ArrayOffset = PheromoneMap.GetLength(0); // 800
+        //float range = Pmax - Pmin;
+        int ArrayOffset = WindowWidth;
 
-        for (int i = 0; i < PheromoneMap.GetLength(1); i++) //j - x     i - y
+        for (int i = 0; i < WindowHeight; i++) //j - x     i - y
         {
-            for (int j = 0; j < PheromoneMap.GetLength(0); j++)
+            for (int j = 0; j < WindowWidth; j++)
             {
-                ColorMap[ArrayOffset * i + j].R = 255;
-                ColorMap[ArrayOffset * i + j].G = 0;
-                ColorMap[ArrayOffset * i + j].B = 0;
-                ColorMap[ArrayOffset * i + j].A = (byte)MathF.Round(PheromoneMap[j, i] * OnePercent, 0);
+                //float temp = (float)j / PheromoneMap.GetLength(0);
+                //Color color = new Color(0f, 0f, (PheromoneMap[j, i] - Pmin) * range );
+                //ColorMap[ArrayOffset * i + j] = GetColor((PheromoneMap[j, i] - Pmin) * range);
+                ColorMap[ArrayOffset * i + j] = GetColor(PheromoneMap[j, i] / Pmax);
+
             }
         }
         return ColorMap;

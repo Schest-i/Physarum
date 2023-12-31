@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
+using System;
 using static System.MathF;
 
 namespace Physarum.AgentLogic
@@ -22,16 +23,19 @@ namespace Physarum.AgentLogic
         float pheromone;
         float threshold;
         
-        bool angrystate; // false - normanl, true - crazy
+        bool agentstate; // false - normanl, true - crazy
 
         int StartTime;
         int crazyTime;
 
+        Sensor[] sensors;
+        float[] weightmap;
 
         Random random = new Random();
-        Sensor[] sensors;
         float[,] Pmap;
 
+        int WindowWidth;
+        int WindowHeight; 
         
         public Agent(ref Sensor[] sensors, ref float[,] Pmap, float x = 0, float y = 0, float speed = 0, float angle = 0, float pheromone = 0, float threshold = 0,int crazyTime = 0, bool angrystate = false)
         {
@@ -44,68 +48,80 @@ namespace Physarum.AgentLogic
 
             this.crazyTime = crazyTime;
             this.threshold = threshold;
-            this.angrystate = angrystate;
+            this.agentstate = angrystate;
 
             this.sensors = sensors;
             this.Pmap = Pmap;
-            
+
+            WindowWidth = Pmap.GetLength(0);
+            WindowHeight = Pmap.GetLength(1);
+
+            weightmap = new float[sensors.Length]; 
         }
-        public void Update(Sensor sensor, GameTime gameTime)
+        public void Update(GameTime gameTime)
         {
-            int oX = (int)x;
-            int oY = (int)y;
+            UpdateWeightMap(gameTime);
+            var sensor = GetSensor();
 
             float nX = coordinates.X + (int)Round(speed * Cos(angle + sensor.angle), 0);
             float nY = coordinates.Y + (int)Round(speed * Sin(angle + sensor.angle), 0);
 
             DrawLine(
-                oX,
-                oY,
+                (int)x,
+                (int)y,
                 (int)Round(nX, 0),
                 (int)Round(nY, 0)
                 );
 
-            x = (Pmap.GetLength(0) + nX) % Pmap.GetLength(0);
-            y = (Pmap.GetLength(1) + nY) % Pmap.GetLength(1);
+            x = (WindowWidth + nX) % WindowWidth;
+            y = (WindowHeight + nY) % WindowHeight;
             
 
             angle += sensor.angle * random.NextSingle() * PI / 4f;
 
-            if (StartTime + crazyTime <= gameTime.TotalGameTime.Seconds) angrystate = false;
+            if (StartTime + crazyTime <= gameTime.TotalGameTime.Seconds) agentstate = false;
         }
-        public Sensor GetBestSensor(GameTime gameTime)
+        public Sensor GetSensor()
         {
-            (int, float) SelectedSensor = (0, 0f); // (number of sensor, value)
-            
-            float Scheck = sensors[0].GetValue(ref Pmap, (int)x, (int)y);
-            float OldPvalue = 0;
-            float Pvalue = 0;
-
-            bool SEquals = false;
-
-            for (int i = 0; i < sensors.Length; i++)
+            //fix states
+            if (!agentstate || true)
             {
-
-                Pvalue = sensors[i].GetValue(ref Pmap, (int)x, (int)y);
-                
-                if (OldPvalue < Pvalue&& !angrystate)
+                float max = weightmap.Max(); 
+                for (int i = 0; i < weightmap.Length; i++)
                 {
-                    if (Pvalue >= threshold) 
+                    if (weightmap[i] == max)
                     {
-                        angrystate = true;
-                        StartTime = gameTime.TotalGameTime.Seconds;
+                        return sensors[i];
                     }
-                    OldPvalue = Pvalue;
-                    SelectedSensor = (Array.IndexOf(sensors, sensors[i]), Pvalue);
-                }
-                else if(Pvalue > Pmap[(int)x, (int)y] && angrystate)
-                {
-                    OldPvalue = Pvalue;
-                    SelectedSensor = (Array.IndexOf(sensors, sensors[i]), Pvalue);
                 }
             }
-            
-            return sensors[SelectedSensor.Item1]; 
+            if (agentstate)
+            {
+                //int WorseElement = 0;
+
+                //for (int i = 0; i < weightmap.Length; i++)
+                //{
+                //    if (weightmap[WorseElement] > weightmap[i])
+                //    {
+                //        WorseElement = i;
+                //    }
+                //}
+                //if (weightmap.Where(w => w.Equals(WorseElement)).Count() > 1)
+                //{
+                //    int[] ElementsId = new int[0];
+                //    for (int i = 0; i < weightmap.Length; i++)
+                //    {
+                //        if (weightmap[i] == weightmap[WorseElement])
+                //        {
+                //            ElementsId.Concat(new int[] { i });
+                //        }
+                //    }
+                //    return sensors[ElementsId[random.Next(ElementsId.Length - 1)]];
+                //}
+                //return sensors[WorseElement];
+                return new Sensor(ref Pmap);    
+            }
+            return new Sensor(ref Pmap);
         }
 
         // Bresenham's line algorithm + schest fix for cutted lines
@@ -117,7 +133,10 @@ namespace Physarum.AgentLogic
             int sy = y0 < y1 ? 1 : -1;
             int error = dx + dy;
             int e2;
-            Pmap[x0, y0] += pheromone;
+            Pmap[
+                (WindowWidth + x0) % WindowWidth,
+                (WindowHeight + y0) % WindowHeight
+                ] += pheromone;
             while (true)
             {
                 if (x0 == x1 && y0 == y1) break;
@@ -135,11 +154,24 @@ namespace Physarum.AgentLogic
                     y0 += sy;
                 }
                 Pmap[
-                (Pmap.GetLength(0) + x0) % Pmap.GetLength(0),
-                (Pmap.GetLength(1) + y0) % Pmap.GetLength(1)
+                (WindowWidth + x0) % WindowWidth,
+                (WindowHeight + y0) % WindowHeight
                 ] += pheromone;
             }
         }
-        
+        private void UpdateWeightMap(GameTime gameTime)
+        {
+            float weight;
+            for (int i = 0; i < sensors.Length; i++)
+            {
+                weight = sensors[i].GetValue((int)x, (int)y);
+                if (threshold < weight & !agentstate) 
+                {
+                    agentstate = true;
+                    StartTime = gameTime.TotalGameTime.Seconds;
+                }
+                weightmap[i] = weight;
+            }
+        }
     }
 }

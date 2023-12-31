@@ -1,4 +1,4 @@
-﻿using Microsoft.Xna.Framework;
+﻿using static System.MathF;
 
 namespace Physarum.AgentLogic
 {
@@ -6,20 +6,30 @@ namespace Physarum.AgentLogic
     {
         public float angle;
         public float length;
-        public Sensor(float angle = 0, float length = 0)
+
+        float[,] Pmap;
+
+        int WindowHeight;
+        int WindowWidth; 
+
+        public Sensor(ref float[,] Pmap, float angle = 0, float length = 0)
         {
             this.angle = angle;
             this.length = length;
-        }
-        public float GetValue(ref float[,] Pmap, int x, int y) 
-        {
-            float result;
-            int MapX, MapY;
-            MapX = (int)MathF.Round((float)(length * MathF.Cos(angle + angle)), 0) + x;
-            MapY = (int)MathF.Round((float)(length * MathF.Sin(angle + angle)), 0) + y;
 
-            MapX = (int)MathF.Abs((Pmap.GetLength(0) + MapX) % Pmap.GetLength(0));
-            MapY = (int)MathF.Abs((Pmap.GetLength(1) + MapY) % Pmap.GetLength(1));
+            this.Pmap = Pmap;
+
+            WindowWidth = Pmap.GetLength(0);
+            WindowHeight = Pmap.GetLength(1);
+        }
+        public float GetValue(int x, int y) 
+        {
+            int MapX, MapY;
+            MapX = (int)Round(length * Cos(angle + angle), 0) + x;
+            MapY = (int)Round(length * Sin(angle + angle), 0) + y;
+
+            MapX = (int)Abs((WindowWidth + MapX) % WindowWidth);
+            MapY = (int)Abs((WindowHeight + MapY) % WindowHeight);
             
             return Pmap[MapX, MapY];
         }
