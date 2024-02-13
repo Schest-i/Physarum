@@ -2,13 +2,45 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net7.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <UseWindowsForms>False</UseWindowsForms>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="FNA.Package" Version="21.7.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Content\BtnHover.xnb">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\BtnNormal.xnb">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\BtnPressed.xnb">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Content\font.xnb">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="C:\Users\denlo\.nuget\packages\fna.package\21.7.0\build\app.config" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="C:\Users\denlo\.nuget\packages\fna.package\21.7.0\build\app.config" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="C:\Users\denlo\.nuget\packages\fna.package\21.7.0\build\app.config" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="C:\Users\denlo\.nuget\packages\fna.package\21.7.0\build\app.config" />
   </ItemGroup>
 
 </Project>
